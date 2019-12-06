@@ -1,0 +1,262 @@
+---
+title: 'Case Study #2'
+author: "Quynh Chau"
+date: "12/05/2019"
+output: html_document
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+##This is an R Markdown document for Case Study #2. Factors Influencing Employee Turnover.
+
+```
+## Load libraries needed for data analysis
+
+library(ggplot2)
+library(DataExplorer)
+library(corrplot)
+library(Hmisc)
+library(dplyr)
+library(GGally)
+library(tidyverse)
+library(e1071)
+library(caret)
+library(data.table)
+
+## Set working directory, read in employee data files and and do exploratory data analysis (EDA) to examine correlations ## between different data variables. Check for variables with missing data - NAs.
+
+setwd("C:/Users/Owner/Documents/SMU/Doing Data Sci/Case Study")
+CS_data = read.csv("CaseStudy2-data.csv")
+CS_data <- data.frame(CS_data)
+str(CS_data)
+map(CS_data, ~sum(is.na(.)))
+str(CS_data)
+
+## There are no missing data for any of the variables so imputing is needed and the dataset is used as is.
+
+## Data Visualization Part 1. Job Role Specific Trends Related to Job Satisfaction
+
+## Male Employees:  Graph Job Satsifaction Repsonses (1- lowest to 4-highest) as a percentage of total by Job Role 
+
+CS_data1 <- CS_data %>% filter(Gender == "Male") %>%
+  group_by(JobRole,JobSatisfaction) %>% 
+  summarise(count=n()) %>% 
+  mutate(perc=count/sum(count))
+
+ggplot(CS_data1, aes(x = factor(JobRole), y = perc*100, fill = factor(JobSatisfaction))) +
+  geom_bar(stat="identity", width = 0.7) +
+  labs(x = "JobRole (Male)", y = "Percent", fill = "JobSatisfaction") +
+  theme(text = element_text(size=20), axis.text.x = element_text(angle=90, hjust=1))
+
+## Female Employees:  Graph Job Satsifaction Repsonses (1- lowest to 4-highest) as a percentage of total by Job Role
+
+CS_data2 <- CS_data %>% filter(Gender == "Female") %>%
+  group_by(JobRole,JobSatisfaction) %>% 
+  summarise(count=n()) %>% 
+  mutate(perc=count/sum(count))
+
+ggplot(CS_data2, aes(x = factor(JobRole), y = perc*100, fill = factor(JobSatisfaction))) +
+  geom_bar(stat="identity", width = 0.7) +
+  labs(x = "JobRole (Female)", y = "Percent", fill = "JobSatisfaction") +
+  theme(text = element_text(size=20), axis.text.x = element_text(angle=90, hjust=1))
+
+## Job Satisfaction by Education Field for Male Employees
+
+CS_data3 <- CS_data %>% filter(Gender == "Male") %>%
+  group_by(EducationField,JobSatisfaction) %>% 
+  summarise(count=n()) %>% 
+  mutate(perc=count/sum(count))
+
+ggplot(CS_data3, aes(x = factor(EducationField), y = perc*100, fill = factor(JobSatisfaction))) +
+  geom_bar(stat="identity", width = 0.7) +
+  labs(x = "Education Field (Male Employees)", y = "Percent", fill = "JobSatisfaction") +
+  theme(text = element_text(size=18), axis.text.x = element_text(angle=90, hjust=1))
+  
+## Job Satisfaction by Education Field for Female Employees
+
+CS_data4 <- CS_data %>% filter(Gender == "Female") %>%
+  group_by(EducationField,JobSatisfaction) %>% 
+  summarise(count=n()) %>% 
+  mutate(perc=count/sum(count))
+
+ggplot(CS_data4, aes(x = factor(EducationField), y = perc*100, fill = factor(JobSatisfaction))) +
+  geom_bar(stat="identity", width = 0.7) +
+  labs(x = "Education Field (Female Employees)", y = "Percent", fill = "JobSatisfaction") +
+  theme(text = element_text(size=18), axis.text.x = element_text(angle=90, hjust=1))
+  
+  
+## Job Satisfaction by Education Level for Female Employees
+
+CS_data5 <- CS_data %>% filter(Gender == "Female") %>%
+  group_by(Education,JobSatisfaction) %>% 
+  summarise(count=n()) %>% 
+  mutate(perc=count/sum(count))
+
+ggplot(CS_data5, aes(x = factor(Education), y = perc*100, fill = factor(JobSatisfaction))) +
+  geom_bar(stat="identity", width = 0.7) +
+  labs(x = "Education Level (Female Employees)", y = "Percent", fill = "JobSatisfaction") +
+  theme(text = element_text(size=18), axis.text.x = element_text(angle=90, hjust=1))
+  
+## Job Satisfaction by Education Level for Male Employees
+
+CS_data6 <- CS_data %>% filter(Gender == "Male") %>%
+  group_by(Education,JobSatisfaction) %>% 
+  summarise(count=n()) %>% 
+  mutate(perc=count/sum(count))
+
+ggplot(CS_data6, aes(x = factor(Education), y = perc*100, fill = factor(JobSatisfaction))) +
+  geom_bar(stat="identity", width = 0.7) +
+  labs(x = "Education Level (Male Employees)", y = "Percent", fill = "JobSatisfaction") +
+  theme(text = element_text(size=18), axis.text.x = element_text(angle=90, hjust=1))  
+  
+## Data Visualization Part 2.  Examine The Relevance of Selected Variables As a Potential Influencer of Attrition
+
+## Exploratory Data Analysis - Create boxplots of Attrition and Age, Hourly Rate, Distance from Home, Years
+## Since Last Promotion, and Years at Company (Longevity)
+
+CS1 <- data.frame(CS_data$Attrition, CS_data$Age, CS_data$HourlyRate, CS_data$DistanceFromHome, CS_data$YearsSinceLastPromotion, CS_data$YearsAtCompany)
+names(CS1) <- c("Attrition", "Age", "Hourly Rate", "DistancefrHome", "YrsLastPromotion", "Longevity")
+
+CS1 %>% gather(Measurement, Value, -Attrition) %>% 
+ggplot(aes(x=Attrition, y = Value)) +
+geom_boxplot() +
+facet_grid(Measurement ~ ., scale = "free_y")
+
+## Exploratory Data Analysis - Create boxplots of Attrition and Percent Salary Increase, Years in Current Role, Performance ## Rating, and Stock Option Level (Longevity)
+
+CS2 <- data.frame(CS_data$Attrition, CS_data$PercentSalaryHike, CS_data$TotalWorkingYears, CS_data$YearsInCurrentRole, CS_data$PerformanceRating, CS_data$StockOptionLevel)
+names(CS2) <- c("Attrition", "% Salary Increase", "Years in Workforce", "Yrs in Current Role", "Most Recent Performance Rating", "Stock Option Level")
+
+CS2 %>% gather(Measurement, Value, -Attrition) %>% 
+ggplot(aes(x=Attrition, y = Value)) +
+geom_boxplot() +
+facet_grid(Measurement ~ ., scale = "free_y")
+
+## Correlation among variables
+ CS_data %>% filter(Attrition == "Yes")
+   select_if(is.numeric) %>%
+  cor() %>%
+  corrplot::corrplot()
+  
+CS_data %>% 
+  filter(Attrition == "No") %>%
+  select_if(is.numeric) %>%
+  cor() %>%
+  corrplot::corrplot()
+
+
+## Build Naive_Bayes Models to classify variables with impact on atttrition
+
+## NBMod1 : Attrition based on Age/Over18/Education/EduationField/Marital Status, Gender, and Distance from Home
+
+NBMod1 <- data.frame(CS_data$Attrition, CS_data$Age, CS_data$Over18, CS_data$Education, CS_data$EducationField,CS_data$MaritalStatus,CS_data$Gender,CS_data$DistanceFromHome)
+str(NBMod1)
+names(NBMod1) = c("Attrition", "Age", "Over18", "Education", "EducationField", "MaritalStatus", "Gender","DistanceFromHome")
+str(NBMod1)
+
+NBModel1=naiveBayes(Attrition ~ ., data = NBMod1)
+predict(NBModel1, NBMod1) %>% head
+table(NBMod1$Attrition, predict(NBModel1, NBMod1), dnn = c("Data", "Predictions"))
+CM1 = confusionMatrix(table(NBMod1$Attrition, predict(NBModel1,NBMod1)))
+CM1
+
+## NBMod2: Attrition based on Compensation Influencers
+## NBMod2:  Attrition based on Percent of Last Pay Increase, Years in Workforce, Years in Current Role, Last Performance Rating, Stock Option Level, Monthly rate
+
+NBMod2 <- data.frame(CS_data$Attrition, CS_data$PercentSalaryHike, CS_data$TotalWorkingYears, CS_data$YearsInCurrentRole, CS_data$PerformanceRating,CS_data$StockOptionLevel,CS_data$MonthlyRate)
+str(NBMod1)
+names(NBMod2) = c("Attrition", "PercentSalaryHike", "TotalWorkingYears", "YearsInCurrentRole", "PerformanceRating", "StockOptionLevel", "MonthlyRate")
+str(NBMod1)
+
+NBModel2=naiveBayes(Attrition ~ ., data = NBMod2)
+predict(NBModel2, NBMod2) %>% head
+table(NBMod2$Attrition, predict(NBModel2, NBMod2), dnn = c("Data", "Predictions"))
+CM2 = confusionMatrix(table(NBMod2$Attrition, predict(NBModel2,NBMod2)))
+CM2
+
+## NBMod3: Attrition based on Longevity Influencers
+## NBMod3:  Attrition based on Years at Company, Years Since Last Promotion, Years with Current Manager, Years in Current Role, Numbers of Companies Worked
+
+NBMod3 <- data.frame(CS_data$Attrition, CS_data$YearsAtCompany, CS_data$YearsSinceLastPromotion, CS_data$YearsWithCurrManager, CS_data$YearsInCurrentRole,CS_data$NumCompaniesWorked)
+str(NBMod3)
+names(NBMod3) = c("Attrition", "YearsAtCompany", "YearsSinceLastPromotion", "YearsWithCurrManager", "YearsInCurrentRole", "NumCompaniesWorked")
+str(NBMod3)
+
+NBModel3=naiveBayes(Attrition ~ ., data = NBMod3)
+predict(NBModel3, NBMod3) %>% head
+table(NBMod3$Attrition, predict(NBModel3, NBMod3), dnn = c("Data", "Predictions"))
+CM3 = confusionMatrix(table(NBMod3$Attrition, predict(NBModel3,NBMod3)))
+CM3
+
+
+## NBMod4: Attrition based on Work Environment Influencers
+## NBMod4:  Attrition based on Satisfaction with environment, Job Involvement, Job Satisfaction, Relationship Satisfaction, Work Life Balance, Training Times Last Year, Business Travel
+
+NBMod4 <- data.frame(CS_data$Attrition, CS_data$EnvironmentSatisfaction, CS_data$JobInvolvement, CS_data$JobSatisfaction, CS_data$RelationshipSatisfaction,CS_data$WorkLifeBalance, CS_data$TrainingTimesLastYear, CS_data$BusinessTravel)
+str(NBMod4)
+names(NBMod4) = c("Attrition", "EnvironmentSatisfaction", "JobInvolvement", "JobSatisfaction", "RelationshipSatisfaction", "WorkLifeBalance", "TrainingTimesLastYear", "BusinessTravel")
+str(NBMod4)
+
+NBModel4=naiveBayes(Attrition ~ ., data = NBMod4)
+predict(NBModel4, NBMod4) %>% head
+table(NBMod4$Attrition, predict(NBModel4, NBMod4), dnn = c("Data", "Predictions"))
+CM4 = confusionMatrix(table(NBMod4$Attrition, predict(NBModel4,NBMod4)))
+CM4
+
+
+## NBMod5: Attrition based on Miscellaneous Influencers
+## NBMod5:  Attrition based on Department, Education Field, Job Role, Overtime, Standard Hours
+
+NBMod5 <- data.frame(CS_data$Attrition, CS_data$Department, CS_data$EducationField, CS_data$JobRole, CS_data$OverTime, CS_data$StandardHours)
+str(NBMod5)
+names(NBMod5) = c("Attrition", "Department", "EducationField", "JobRole", "OverTime", "StandardHours")
+str(NBMod5)
+
+NBModel5=naiveBayes(Attrition ~ ., data = NBMod5)
+predict(NBModel5, NBMod5) %>% head
+table(NBMod5$Attrition, predict(NBModel5, NBMod5), dnn = c("Data", "Predictions"))
+CM5 = confusionMatrix(table(NBMod5$Attrition, predict(NBModel5,NBMod5)))
+CM5
+```
+## Create Comparative Summary of Naive Bayes Models for Factors Influencing Atrrition based on Accuracy, Sensitivity, Specificity
+Summary = data.table(
+ NBModelNames =c("Personal Influencers", "Compensation Influencers", "Longevity Influencers", "Work Environment Influencers", "Miscellaneous"),
+ Accuracy =c(0.8494,0.8414, 0.8310, 0.8494, 0.8448),
+ Sensitivity = c(0.8503, 0.8434, 0.8401, 0.8570, 0.8546),
+ Specificity = c(0.8000, 0.6250, 0.2308, 0.6452, 0.5806)
+)
+Summary
+
+## Add A New Column (Attrition) and Add Predicted Attrition Values Using Best Naive Bayes Model To CaseStudy2CompSet No Attrition; generate .csv file
+CS_dataNA = read.csv("CaseStudy2CompsetNoAttrition.csv")
+CS_dataNA = data.frame(CS_dataNA)
+str(CS_dataNA)
+CS_dataNA$Attrition <- predict(NBModel1, CS_dataNA)
+str(CS_dataNA)
+summary (CS_dataNA$Attrition)
+write.csv(CS_dataNA,"C:/Users/Owner/Documents/SMU/Doing Data Sci/Case Study/Case2PredictionsChau Attrition.csv", row.names = TRUE)
+
+## Prediction of Monthly Incomes Using a Linear Regression Model
+Salarymodel <- glm(formula = MonthlyIncome ~ Age + JobLevel + TotalWorkingYears + YearsAtCompany + Education, data = CS_data)
+predict(Salarymodel,CS_data)
+
+CS_CompSetNS = read.csv("CaseStudy2CompSetNoSalary.csv")
+CS_CompSetNS = data.frame(CS_CompSetNS)
+str(CS_CompSetNS)
+CS_CompSetNS$MonthlyIncome <- predict(Salarymodel, CS_CompSetNS)
+str(CS_CompSetNS)
+summary (CS_CompSetNS$MonthlyIncome)
+write.csv(CS_CompSetNS,"C:/Users/Owner/Documents/SMU/Doing Data Sci/Case Study/Case2PredictionsChau Salary.csv", row.names = TRUE)
+
+## Link to Audio Presentation :https://youtu.be/gr9eFGLucos
+
+```{r pressure, echo=TRUE}
+
+```
+```
+
+
